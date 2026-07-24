@@ -59,7 +59,14 @@ jobs:
         with:
           tagName: __VERSION__
           releaseName: 'DeskPet Engine __VERSION__'
-          releaseBody: 'See the assets below to download the installer for your platform.'
+          releaseBody: |
+            根据你的系统下载对应安装包：
+            - **Windows (x64)**：`DeskPet Engine___VERSION___x64-setup.exe` 或 `DeskPet Engine___VERSION___x64_zh-CN.msi`
+            - **macOS (Apple Silicon M1+)**：`DeskPet Engine___VERSION___aarch64.dmg`
+            - **macOS (Intel)**：`DeskPet Engine___VERSION___x64.dmg`
+            - **Linux (x64)**：`deskpet-engine___VERSION___amd64.AppImage` 或 `deskpet-engine___VERSION___amd64.deb`
+            
+            下载后安装并运行即可。
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}

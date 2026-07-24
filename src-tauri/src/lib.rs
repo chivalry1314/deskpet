@@ -2,6 +2,7 @@ struct GlobalListenerState {
     enabled: Arc<AtomicBool>,
 }
 
+#[cfg(target_os = "windows")]
 fn start_global_input_listener(
     app: tauri::AppHandle,
     enabled: Arc<AtomicBool>,
@@ -103,14 +104,23 @@ pub fn run() {
             });
             apply_settings(app.handle(), &settings);
 
-            // Start global input listener (disabled until pet window is shown)
-            let listener_enabled = Arc::new(AtomicBool::new(false));
-            app.manage(GlobalListenerState {
-                enabled: listener_enabled.clone(),
-            });
-            let pet = app.get_webview_window("pet").ok_or("pet window not found")?;
-            let hwnd = pet.hwnd().map_err(|e| e.to_string())?;
-            start_global_input_listener(app.handle().clone(), listener_enabled, hwnd);
+            // Start global input listener (disabled until pet window is shown) [Windows only]
+            #[cfg(target_os = "windows")]
+            {
+                let listener_enabled = Arc::new(AtomicBool::new(false));
+                app.manage(GlobalListenerState {
+                    enabled: listener_enabled.clone(),
+                });
+                let pet = app.get_webview_window("pet").ok_or("pet window not found")?;
+                let hwnd = pet.hwnd().map_err(|e| e.to_string())?;
+                start_global_input_listener(app.handle().clone(), listener_enabled, hwnd);
+            }
+
+            #[cfg(not(target_os = "windows"))]
+            {
+                // 非 Windows 平台不管理 GlobalListenerState，spawn/close 中 try_state 会自然返回 None
+                let _ = app;
+            }
 
             // System tray
             let menu = tauri::menu::MenuBuilder::new(app)

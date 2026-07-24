@@ -36,29 +36,41 @@ export default function Manager({ onCreate, onEdit }: ManagerProps) {
   })
   const [showSettings, setShowSettings] = useState(false)
   const [live2dRunning, setLive2dRunning] = useState(false)
+  const [loading, setLoading] = useState<string | null>(null)
 
   async function handleRunLive2d() {
+    setLoading('启动 Live2D 示范猫...')
     try {
       await spawnPetWindow('__live2d__')
       setLive2dRunning(true)
     } catch (e) {
       alert('运行失败: ' + e)
+    } finally {
+      setLoading(null)
     }
   }
 
   async function handleStopLive2d() {
+    setLoading('停止 Live2D 示范猫...')
     try {
       await closePetWindow()
       setLive2dRunning(false)
     } catch (e) {
       alert('停止失败: ' + e)
+    } finally {
+      setLoading(null)
     }
   }
 
   useEffect(() => {
-    refresh()
-    getBaseDataDir().then(setBaseDir).catch(console.error)
-    getSettings().then(setSettings).catch(console.error)
+    setLoading('加载宠物列表...')
+    Promise.all([
+      refresh(),
+      getBaseDataDir().then(setBaseDir),
+      getSettings().then(setSettings),
+    ])
+      .catch(console.error)
+      .finally(() => setLoading(null))
   }, [])
 
   async function saveSettingPatch(patch: Partial<Settings>) {
@@ -75,9 +87,9 @@ export default function Manager({ onCreate, onEdit }: ManagerProps) {
     try {
       const selected = await open({ directory: true })
       if (!selected || typeof selected !== 'string') return
-      if (
-        confirm('是否把当前目录中的宠物迁移到新目录？\n选"取消"则只切换目录，旧宠物保留在原处。')
-      ) {
+      const migrate = confirm('是否把当前目录中的宠物迁移到新目录？\n选"取消"则只切换目录，旧宠物保留在原处。')
+      setLoading(migrate ? '正在迁移数据目录...' : '正在切换数据目录...')
+      if (migrate) {
         await migratePets(selected)
       }
       await saveSettingPatch({ data_dir: selected })
@@ -86,14 +98,23 @@ export default function Manager({ onCreate, onEdit }: ManagerProps) {
       alert('数据目录已切换: ' + selected)
     } catch (e) {
       alert('切换数据目录失败: ' + e)
+    } finally {
+      setLoading(null)
     }
   }
 
   async function resetDataDir() {
     if (!confirm('恢复默认数据目录？当前自定义目录中的宠物不会自动迁移。')) return
-    await saveSettingPatch({ data_dir: '' })
-    await getBaseDataDir().then(setBaseDir)
-    await refresh()
+    setLoading('正在恢复默认数据目录...')
+    try {
+      await saveSettingPatch({ data_dir: '' })
+      await getBaseDataDir().then(setBaseDir)
+      await refresh()
+    } catch (e) {
+      alert('恢复失败: ' + e)
+    } finally {
+      setLoading(null)
+    }
   }
 
   async function refresh() {
@@ -106,15 +127,19 @@ export default function Manager({ onCreate, onEdit }: ManagerProps) {
   }
 
   async function handleRun(pet: PetInfo) {
+    setLoading(`正在启动 ${pet.name}...`)
     try {
       await spawnPetWindow(pet.name)
       setRunning((prev) => new Set(prev).add(pet.name))
     } catch (e) {
       alert('运行失败: ' + e)
+    } finally {
+      setLoading(null)
     }
   }
 
   async function handleStop(pet: PetInfo) {
+    setLoading('正在停止宠物...')
     try {
       await closePetWindow()
       setRunning((prev) => {
@@ -124,17 +149,22 @@ export default function Manager({ onCreate, onEdit }: ManagerProps) {
       })
     } catch (e) {
       alert('停止失败: ' + e)
+    } finally {
+      setLoading(null)
     }
   }
 
   async function handleDelete(pet: PetInfo) {
     if (!confirm(`确定删除宠物「${pet.name}」吗？`)) return
+    setLoading(`正在删除 ${pet.name}...`)
     try {
       if (running.has(pet.name)) await handleStop(pet)
       await deletePet(pet.name)
-      refresh()
+      await refresh()
     } catch (e) {
       alert('删除失败: ' + e)
+    } finally {
+      setLoading(null)
     }
   }
 
@@ -145,24 +175,29 @@ export default function Manager({ onCreate, onEdit }: ManagerProps) {
   async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
+    setLoading('正在导入 .pet...')
     try {
       const buf = await file.arrayBuffer()
       await importPet(Array.from(new Uint8Array(buf)))
-      refresh()
+      await refresh()
       alert('导入成功')
     } catch (err) {
       alert('导入失败: ' + err)
     } finally {
+      setLoading(null)
       e.target.value = ''
     }
   }
 
   async function handleExport(pet: PetInfo) {
+    setLoading(`正在导出 ${pet.name}...`)
     try {
       const path = await exportPetToDisk(pet.name)
       alert(`已导出: ${path}`)
     } catch (e) {
       alert('导出失败: ' + e)
+    } finally {
+      setLoading(null)
     }
   }
 
@@ -397,6 +432,12 @@ export default function Manager({ onCreate, onEdit }: ManagerProps) {
           </ul>
         )}
       </div>
+      {loading && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="loading-ring" />
+          <div className="mt-3 text-sm font-medium text-white">{loading}</div>
+        </div>
+      )}
     </div>
   )
 }

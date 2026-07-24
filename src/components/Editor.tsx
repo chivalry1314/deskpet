@@ -164,6 +164,7 @@ export default function Editor({ petName, onBack, onSaved }: EditorProps) {
   const [autoRemoveBg, setAutoRemoveBg] = useState(true)
   const [showPrompts, setShowPrompts] = useState(false)
   const [copiedKey, setCopiedKey] = useState('')
+  const [loading, setLoading] = useState<string | null>(petName ? '正在加载宠物...' : null)
   const objectUrlsRef = useRef<Set<string>>(new Set())
 
   function registerObjectUrl(url: string) {
@@ -212,6 +213,7 @@ export default function Editor({ petName, onBack, onSaved }: EditorProps) {
   useEffect(() => {
     if (!petName) return
     let cancelled = false
+    setLoading('正在加载宠物...')
     loadPet(petName)
       .then(async (manifest) => {
         if (cancelled) return
@@ -260,6 +262,9 @@ export default function Editor({ petName, onBack, onSaved }: EditorProps) {
         })
       })
       .catch((e) => alert('加载失败: ' + e))
+      .finally(() => {
+        if (!cancelled) setLoading(null)
+      })
 
     return () => {
       cancelled = true
@@ -349,6 +354,7 @@ export default function Editor({ petName, onBack, onSaved }: EditorProps) {
   const handleFileDrop = useCallback(
     async (stateKey: string, files: FileList | null) => {
       if (!files) return
+      setLoading('正在处理素材...')
       const newFrames: FrameFile[] = []
       let inferredFps: number | null = null
       let fromVideo = false
@@ -410,6 +416,7 @@ export default function Editor({ petName, onBack, onSaved }: EditorProps) {
           },
         },
       }))
+      setLoading(null)
     },
     [autoRemoveBg]
   )
@@ -440,6 +447,8 @@ export default function Editor({ petName, onBack, onSaved }: EditorProps) {
       alert('idle 状态至少需要一帧')
       return
     }
+
+    setLoading('正在保存宠物...')
 
     const states: Manifest['states'] = {}
     const frameEntries: { name: string; frame: FrameFile }[] = []
@@ -483,6 +492,8 @@ export default function Editor({ petName, onBack, onSaved }: EditorProps) {
       onSaved()
     } catch (e) {
       alert('保存失败: ' + e)
+    } finally {
+      setLoading(null)
     }
   }, [data, onSaved])
 
@@ -794,6 +805,13 @@ export default function Editor({ petName, onBack, onSaved }: EditorProps) {
           )}
         </div>
       </div>
+
+      {loading && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="loading-ring" />
+          <div className="mt-3 text-sm font-medium text-white">{loading}</div>
+        </div>
+      )}
     </div>
   )
 }

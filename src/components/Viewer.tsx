@@ -47,7 +47,6 @@ export default function Viewer() {
   })
 
   const winRef = useRef(getCurrentWindow())
-  const dragStart = useRef({ x: 0, y: 0 })
   const stateRef = useRef(state)
   const manifestRef = useRef(manifest)
   const posRef = useRef({ x: 100, y: 100 })
@@ -251,25 +250,28 @@ export default function Viewer() {
             }
           }
         } else {
-          const maxX = window.screen.availWidth - manifestRef.current!.window.width
-          const maxY = window.screen.availHeight - manifestRef.current!.window.height
-          let nx = posRef.current.x + vx
-          let ny = posRef.current.y + vy
-          if (nx <= 0 || nx >= maxX) {
-            vx = -vx
-            nx = Math.max(0, Math.min(nx, maxX))
-          }
-          if (ny <= 0 || ny >= maxY) {
-            vy = -vy
-            ny = Math.max(0, Math.min(ny, maxY))
-          }
-          posRef.current = { x: nx, y: ny }
-          winRef.current.setPosition(new PhysicalPosition(nx, ny)).catch(console.error)
+          if (!dragRef.current.dragging) {
+            const sf = window.devicePixelRatio || 1
+            const maxX = (window.screen.availWidth - manifestRef.current!.window.width) * sf
+            const maxY = (window.screen.availHeight - manifestRef.current!.window.height) * sf
+            let nx = posRef.current.x + vx
+            let ny = posRef.current.y + vy
+            if (nx <= 0 || nx >= maxX) {
+              vx = -vx
+              nx = Math.max(0, Math.min(nx, maxX))
+            }
+            if (ny <= 0 || ny >= maxY) {
+              vy = -vy
+              ny = Math.max(0, Math.min(ny, maxY))
+            }
+            posRef.current = { x: nx, y: ny }
+            winRef.current.setPosition(new PhysicalPosition(Math.round(nx), Math.round(ny))).catch(console.error)
 
-          const nextFlip = vx < 0
-          if (nextFlip !== lastFlipX) {
-            lastFlipX = nextFlip
-            setFlipX(nextFlip)
+            const nextFlip = vx < 0
+            if (nextFlip !== lastFlipX) {
+              lastFlipX = nextFlip
+              setFlipX(nextFlip)
+            }
           }
 
           if (now >= phaseEnd) {
@@ -292,25 +294,71 @@ export default function Viewer() {
   const currentFrame = manifest?.states[state]?.frames[frameIndex]
   const imageUrl = currentFrame ? imageMap[currentFrame] : undefined
 
+  const dragRef = useRef({
+    dragging: false,
+    started: false,
+    startX: 0,
+    startY: 0,
+    winStartX: 0,
+    winStartY: 0,
+    hasMoved: false,
+    startTime: 0,
+  })
+
   async function handleMouseDown(e: React.MouseEvent) {
+    console.log('handleMouseDown', e.button, e.screenX, e.screenY)
     if (e.button !== 0) return
-    dragStart.current = { x: e.screenX, y: e.screenY }
     setMenu((m) => ({ ...m, show: false }))
-    if (manifest?.behavior.drag_physics) {
-      try {
-        await winRef.current.startDragging()
-      } catch (err) {
-        console.error(err)
-      }
+    const { x, y } = await winRef.current.outerPosition().catch(() => ({ x: posRef.current.x, y: posRef.current.y }))
+    dragRef.current = {
+      dragging: manifest?.behavior.drag_physics ?? false,
+      started: false,
+      startX: e.screenX,
+      startY: e.screenY,
+      winStartX: x,
+      winStartY: y,
+      hasMoved: false,
+      startTime: performance.now(),
+    }
+    window.addEventListener('mousemove', handleGlobalMouseMove)
+    window.addEventListener('mouseup', handleGlobalMouseUp)
+  }
+
+  function handleGlobalMouseMove(e: MouseEvent) {
+    if (!dragRef.current.dragging) return
+    const dx = e.screenX - dragRef.current.startX
+    const dy = e.screenY - dragRef.current.startY
+    if (!dragRef.current.started && Math.sqrt(dx * dx + dy * dy) > 3) {
+      dragRef.current.started = true
+      dragRef.current.hasMoved = true
+    }
+    if (dragRef.current.started) {
+      const sf = window.devicePixelRatio || 1
+      const newX = dragRef.current.winStartX + Math.round(dx * sf)
+      const newY = dragRef.current.winStartY + Math.round(dy * sf)
+      posRef.current = { x: newX, y: newY }
+      winRef.current.setPosition(new PhysicalPosition(newX, newY)).catch(console.error)
     }
   }
 
-  function handleMouseUp(e: React.MouseEvent) {
-    const dx = e.screenX - dragStart.current.x
-    const dy = e.screenY - dragStart.current.y
-    if (Math.sqrt(dx * dx + dy * dy) < 5) {
+  function handleGlobalMouseUp(e: MouseEvent) {
+    console.log('handleGlobalMouseUp', e.screenX, e.screenY, dragRef.current)
+    window.removeEventListener('mousemove', handleGlobalMouseMove)
+    window.removeEventListener('mouseup', handleGlobalMouseUp)
+    const dx = e.screenX - dragRef.current.startX
+    const dy = e.screenY - dragRef.current.startY
+    const distance = Math.sqrt(dx * dx + dy * dy)
+    const duration = performance.now() - dragRef.current.startTime
+    if (!dragRef.current.hasMoved && distance < 5 && duration < 250) {
       handleClick()
     }
+    dragRef.current.dragging = false
+    dragRef.current.started = false
+  }
+
+  function handleClick() {
+    console.log('handleClick')
+    triggerClick()
   }
 
   const effectiveFlip = flipOverride ?? flipX
@@ -320,16 +368,15 @@ export default function Viewer() {
     if (!m) return
     const target = m.interactions.on_click
     const targetCfg = m.states[target]
-    const idleFrames = m.states.idle?.frames ?? []
-    const hasDistinctClick =
-      targetCfg &&
-      targetCfg.frames.length > 0 &&
-      !(targetCfg.frames.length === 1 && targetCfg.frames[0] === idleFrames[0])
-    if (hasDistinctClick) {
+    console.log('triggerClick', { target, targetCfg, states: Object.keys(m.states) })
+    if (targetCfg && targetCfg.frames.length > 0) {
       setState(target)
       setFrameIndex(0)
       setStateTick((t) => t + 1)
     } else {
+      const available = Object.keys(m.states).join(', ')
+      console.warn(`on_click 状态「${target}」不存在或没有帧，当前可用状态: ${available}`)
+      alert(`点击响应状态「${target}」不存在或没有帧。\n当前可用状态: ${available || '无'}\n请到编辑器「行为配置」中修改「点击响应状态」。`)
       setPopKey((k) => k + 1)
     }
   }
@@ -347,11 +394,8 @@ export default function Viewer() {
     }
   }
 
-  function handleClick() {
-    triggerClick()
-  }
-
   function handleContextMenu(e: React.MouseEvent) {
+    console.log('handleContextMenu')
     e.preventDefault()
     setMenu({ x: e.clientX, y: e.clientY, show: true })
   }
@@ -399,7 +443,6 @@ export default function Viewer() {
     <div
       className="viewer-root relative"
       onMouseDown={handleMouseDown}
-      onMouseUp={handleMouseUp}
       onContextMenu={handleContextMenu}
       style={{
         width: manifest.window.width,

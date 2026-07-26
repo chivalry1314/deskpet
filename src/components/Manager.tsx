@@ -37,6 +37,12 @@ export default function Manager({ onCreate, onEdit }: ManagerProps) {
   const [showSettings, setShowSettings] = useState(false)
   const [live2dRunning, setLive2dRunning] = useState(false)
   const [loading, setLoading] = useState<string | null>(null)
+  const [renameDialog, setRenameDialog] = useState<{
+    open: boolean
+    originalName: string
+    newName: string
+    bytes: number[] | null
+  }>({ open: false, originalName: '', newName: '', bytes: null })
 
   async function handleRunLive2d() {
     setLoading('启动 Live2D 示范猫...')
@@ -178,14 +184,66 @@ export default function Manager({ onCreate, onEdit }: ManagerProps) {
     setLoading('正在导入 .pet...')
     try {
       const buf = await file.arrayBuffer()
-      await importPet(Array.from(new Uint8Array(buf)))
-      await refresh()
-      alert('导入成功')
+      const bytes = Array.from(new Uint8Array(buf))
+      await tryImportPet(bytes)
     } catch (err) {
       alert('导入失败: ' + err)
     } finally {
       setLoading(null)
       e.target.value = ''
+    }
+  }
+
+  async function tryImportPet(bytes: number[], suggestedName?: string) {
+    try {
+      await importPet(bytes, suggestedName)
+      await refresh()
+      setRenameDialog({ open: false, originalName: '', newName: '', bytes: null })
+      if (suggestedName) {
+        alert(`已以「${suggestedName}」导入成功`)
+      } else {
+        alert('导入成功')
+      }
+    } catch (err) {
+      const msg = String(err)
+      const match = msg.match(/宠物「(.+?)」已存在/)
+      if (match) {
+        const originalName = match[1]
+        const baseName = suggestedName || originalName
+        let counter = 2
+        let candidate = `${baseName}_${counter}`
+        while (pets.some((p) => p.name === candidate)) {
+          counter++
+          candidate = `${baseName}_${counter}`
+        }
+        setRenameDialog({
+          open: true,
+          originalName,
+          newName: candidate,
+          bytes,
+        })
+      } else {
+        throw err
+      }
+    }
+  }
+
+  async function confirmRenameImport() {
+    const { bytes, newName } = renameDialog
+    const trimmed = newName.trim()
+    if (!bytes || !trimmed) return
+    if (pets.some((p) => p.name === trimmed)) {
+      alert(`名称「${trimmed}」已被占用，请换一个`)
+      return
+    }
+    setRenameDialog((prev) => ({ ...prev, open: false }))
+    setLoading(`正在以「${trimmed}」导入...`)
+    try {
+      await tryImportPet(bytes, trimmed)
+    } catch (err) {
+      alert('导入失败: ' + err)
+    } finally {
+      setLoading(null)
     }
   }
 
@@ -436,6 +494,41 @@ export default function Manager({ onCreate, onEdit }: ManagerProps) {
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="loading-ring" />
           <div className="mt-3 text-sm font-medium text-white">{loading}</div>
+        </div>
+      )}
+      {renameDialog.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-lg">
+            <h3 className="mb-2 text-lg font-semibold">宠物名称已存在</h3>
+            <p className="mb-4 text-sm text-slate-500">
+              宠物「{renameDialog.originalName}」已存在，请为该导入宠物指定一个新名称。
+            </p>
+            <label className="mb-1 block text-sm font-medium text-slate-700">新名称</label>
+            <input
+              type="text"
+              value={renameDialog.newName}
+              onChange={(e) => setRenameDialog((prev) => ({ ...prev, newName: e.target.value }))}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') confirmRenameImport()
+              }}
+              className="mb-4 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+              autoFocus
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setRenameDialog({ open: false, originalName: '', newName: '', bytes: null })}
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm hover:bg-slate-50"
+              >
+                取消
+              </button>
+              <button
+                onClick={confirmRenameImport}
+                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-700"
+              >
+                确认导入
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

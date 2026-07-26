@@ -573,7 +573,7 @@ fn migrate_pets(app: tauri::AppHandle, new_base: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn import_pet(app: tauri::AppHandle, bytes: Vec<u8>) -> Result<(), String> {
+fn import_pet(app: tauri::AppHandle, bytes: Vec<u8>, new_name: Option<String>) -> Result<(), String> {
     let mut archive = zip::ZipArchive::new(std::io::Cursor::new(&bytes)).map_err(|e| e.to_string())?;
 
     // Read manifest first to determine pet name
@@ -585,8 +585,25 @@ fn import_pet(app: tauri::AppHandle, bytes: Vec<u8>) -> Result<(), String> {
         mf.read_to_string(&mut manifest_content)
             .map_err(|e| e.to_string())?;
     }
-    let manifest: Manifest = serde_json::from_str(&manifest_content).map_err(|e| e.to_string())?;
-    let target_dir = deskpet_dir(&app).join(&manifest.name);
+    let mut manifest: Manifest = serde_json::from_str(&manifest_content).map_err(|e| e.to_string())?;
+    let original_name = manifest.name.clone();
+    let target_name = new_name.as_ref().unwrap_or(&original_name).to_string();
+
+    // If user provided a new name, update the manifest so the pet displays with that name
+    if let Some(ref name) = new_name {
+        manifest.name = name.clone();
+    }
+
+    let target_dir = deskpet_dir(&app).join(&target_name);
+
+    // Prevent silent overwrite of an existing local pet
+    if target_dir.exists() && target_dir.read_dir().map_err(|e| e.to_string())?.count() > 0 {
+        return Err(format!(
+            "宠物「{}」已存在，请先删除或重命名后再导入",
+            original_name
+        ));
+    }
+
     fs::create_dir_all(&target_dir).map_err(|e| e.to_string())?;
 
     for i in 0..archive.len() {
@@ -598,9 +615,14 @@ fn import_pet(app: tauri::AppHandle, bytes: Vec<u8>) -> Result<(), String> {
         if let Some(parent) = out.parent() {
             fs::create_dir_all(parent).map_err(|e| e.to_string())?;
         }
-        let mut buf = Vec::new();
-        item.read_to_end(&mut buf).map_err(|e| e.to_string())?;
-        fs::write(&out, buf).map_err(|e| e.to_string())?;
+        if item.name() == "manifest.json" {
+            let json = serde_json::to_string_pretty(&manifest).map_err(|e| e.to_string())?;
+            fs::write(&out, json).map_err(|e| e.to_string())?;
+        } else {
+            let mut buf = Vec::new();
+            item.read_to_end(&mut buf).map_err(|e| e.to_string())?;
+            fs::write(&out, buf).map_err(|e| e.to_string())?;
+        }
     }
     Ok(())
 }

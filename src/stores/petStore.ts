@@ -46,8 +46,8 @@ export async function migratePets(newBase: string): Promise<void> {
   return invoke('migrate_pets', { newBase })
 }
 
-export async function importPet(bytes: number[]): Promise<void> {
-  return invoke('import_pet', { bytes })
+export async function importPet(bytes: number[], newName?: string): Promise<void> {
+  return invoke('import_pet', { bytes, newName })
 }
 
 export async function getBaseDataDir(): Promise<string> {

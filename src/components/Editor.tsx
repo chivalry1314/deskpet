@@ -166,6 +166,28 @@ export default function Editor({ petName, onBack, onSaved }: EditorProps) {
   const [copiedKey, setCopiedKey] = useState('')
   const [loading, setLoading] = useState<string | null>(petName ? '正在加载宠物...' : null)
   const objectUrlsRef = useRef<Set<string>>(new Set())
+  const [stateDialog, setStateDialog] = useState<{ open: boolean; preset: string; custom: string }>({
+    open: false,
+    preset: 'walk',
+    custom: 'walk',
+  })
+
+  const STATE_PRESETS = [
+    'idle',
+    'clicked',
+    'walk',
+    'typing',
+    'sleep',
+    'play',
+    'scratch',
+    'eat',
+    'drink',
+    'angry',
+    'happy',
+    'sad',
+    'surprised',
+    'confused',
+  ]
 
   function registerObjectUrl(url: string) {
     objectUrlsRef.current.add(url)
@@ -325,14 +347,18 @@ export default function Editor({ petName, onBack, onSaved }: EditorProps) {
   }, [])
 
   const addState = useCallback(() => {
-    const name = prompt('输入新状态名称 (英文/数字，如 walk / typing):')?.trim()
+    const first = Object.keys(data.states).length === 0 ? 'idle' : 'walk'
+    setStateDialog({ open: true, preset: first, custom: first })
+  }, [data.states])
+
+  function confirmAddState() {
+    const name = stateDialog.custom.trim() || stateDialog.preset.trim()
     if (!name) return
     if (data.states[name]) {
       alert('状态已存在')
       return
     }
     const st = createDefaultState()
-    // typing 是键盘触发的瞬时动作，默认单次播放后回 idle
     if (name === 'typing') {
       st.loop = false
       st.next = 'idle'
@@ -341,7 +367,8 @@ export default function Editor({ petName, onBack, onSaved }: EditorProps) {
       ...d,
       states: { ...d.states, [name]: st },
     }))
-  }, [data.states])
+    setStateDialog({ open: false, preset: 'walk', custom: 'walk' })
+  }
 
   const removeState = useCallback((key: string) => {
     if (!confirm(`删除状态 ${key}?`)) return
@@ -717,13 +744,20 @@ export default function Editor({ petName, onBack, onSaved }: EditorProps) {
                   />
                 </Field>
                 <Field label="点击响应状态">
-                  <input
+                  <select
                     value={data.interactions.on_click}
                     onChange={(e) =>
                       setData((d) => ({ ...d, interactions: { ...d.interactions, on_click: e.target.value } }))
                     }
                     className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                  />
+                  >
+                    {Object.keys(data.states).length === 0 && <option value="">暂无状态</option>}
+                    {Object.keys(data.states).map((name) => (
+                      <option key={name} value={name}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
                 </Field>
               </div>
               <div className="flex gap-6">
@@ -735,7 +769,7 @@ export default function Editor({ petName, onBack, onSaved }: EditorProps) {
                       setData((d) => ({ ...d, behavior: { ...d.behavior, edge_bounce: e.target.checked } }))
                     }
                   />
-                  边缘反弹
+                  待机结束后随机游走（宠物会在屏幕内自己走动）
                 </label>
                 <label className="flex items-center gap-2 text-sm">
                   <input
@@ -748,24 +782,37 @@ export default function Editor({ petName, onBack, onSaved }: EditorProps) {
                   可被拖拽
                 </label>
               </div>
-              <Field label="待机结束后随机行为（状态名，用英文逗号分隔；如 sleep,play,scratch）">
-                <input
-                  value={(data.behavior.random_states ?? []).join(',')}
-                  onChange={(e) =>
-                    setData((d) => ({
-                      ...d,
-                      behavior: {
-                        ...d.behavior,
-                        random_states: e.target.value
-                          .split(',')
-                          .map((s) => s.trim())
-                          .filter(Boolean),
-                      },
-                    }))
-                  }
-                  placeholder="例如：sleep,play,scratch"
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                />
+              <Field label="待机结束后随机切换状态（勾选后，宠物空闲时会自动播放这些状态）">
+                <div className="flex flex-wrap gap-3 rounded-lg border border-slate-300 p-3">
+                  {Object.keys(data.states).length === 0 ? (
+                    <span className="text-sm text-slate-400">请先添加状态</span>
+                  ) : (
+                    Object.keys(data.states).map((name) => {
+                      const checked = (data.behavior.random_states ?? []).includes(name)
+                      return (
+                        <label key={name} className="flex items-center gap-1.5 text-sm text-slate-700">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => {
+                              const list = data.behavior.random_states ?? []
+                              setData((d) => ({
+                                ...d,
+                                behavior: {
+                                  ...d.behavior,
+                                  random_states: e.target.checked
+                                    ? [...list, name]
+                                    : list.filter((s) => s !== name),
+                                },
+                              }))
+                            }}
+                          />
+                          {name}
+                        </label>
+                      )
+                    })
+                  )}
+                </div>
               </Field>
             </div>
           )}
@@ -810,6 +857,50 @@ export default function Editor({ petName, onBack, onSaved }: EditorProps) {
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="loading-ring" />
           <div className="mt-3 text-sm font-medium text-white">{loading}</div>
+        </div>
+      )}
+      {stateDialog.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-lg">
+            <h3 className="mb-4 text-lg font-semibold">添加状态</h3>
+            <div className="mb-4">
+              <label className="mb-1 block text-sm font-medium text-slate-700">选择预设或输入自定义名称</label>
+              <select
+                value={stateDialog.preset}
+                onChange={(e) =>
+                  setStateDialog((prev) => ({ ...prev, preset: e.target.value, custom: e.target.value }))
+                }
+                className="mb-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              >
+                {STATE_PRESETS.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="text"
+                value={stateDialog.custom}
+                onChange={(e) => setStateDialog((prev) => ({ ...prev, custom: e.target.value }))}
+                placeholder="自定义状态名（会覆盖上方选择）"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setStateDialog({ open: false, preset: 'walk', custom: 'walk' })}
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm hover:bg-slate-50"
+              >
+                取消
+              </button>
+              <button
+                onClick={confirmAddState}
+                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-700"
+              >
+                添加
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

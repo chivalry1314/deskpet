@@ -97,9 +97,9 @@
 |---|---|---|
 | `idle_time` | number[] | 待机状态持续的最短、最长时间（秒） |
 | `walk_speed` | number | 随机游走速度 |
-| `edge_bounce` | boolean | 是否开启边缘反弹 |
+| `edge_bounce` | boolean | 是否开启待机结束后随机游走（撞到屏幕边缘会掉头） |
 | `drag_physics` | boolean | 是否允许鼠标拖拽 |
-| `random_states` | string[] | 待机结束后可能随机进入的状态列表 |
+| `random_states` | string[] | 待机结束后可能随机进入并播放的状态列表 |
 
 ### interactions
 

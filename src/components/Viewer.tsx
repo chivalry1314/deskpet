@@ -397,7 +397,16 @@ export default function Viewer() {
   function handleContextMenu(e: React.MouseEvent) {
     console.log('handleContextMenu')
     e.preventDefault()
-    setMenu({ x: e.clientX, y: e.clientY, show: true })
+    const m = manifestRef.current
+    const width = m?.window.width ?? 150
+    const height = m?.window.height ?? 150
+    const MENU_WIDTH = 140
+    const MENU_HEIGHT = 90
+    let x = e.clientX
+    let y = e.clientY
+    if (x + MENU_WIDTH > width) x = Math.max(0, width - MENU_WIDTH)
+    if (y + MENU_HEIGHT > height) y = Math.max(0, height - MENU_HEIGHT)
+    setMenu({ x, y, show: true })
   }
 
   async function closePet() {
@@ -480,27 +489,28 @@ export default function Viewer() {
 
       {menu.show && (
         <div
-          className="absolute z-50 rounded border border-slate-300 bg-white/90 shadow"
+          className="absolute z-50 min-w-max whitespace-nowrap rounded border border-slate-300 bg-white/90 shadow"
           style={{ left: menu.x, top: menu.y }}
           onMouseLeave={() => setMenu((m) => ({ ...m, show: false }))}
+          onMouseDown={(e) => e.stopPropagation()}
         >
           <button
             onClick={() => setFlipOverride((v) => !(v ?? flipX))}
-            className="block w-full px-3 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-100"
+            className="block w-full whitespace-nowrap px-3 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-100"
           >
             水平翻转{effectiveFlip ? ' ✓' : ''}
           </button>
           {flipOverride !== null && (
             <button
               onClick={() => setFlipOverride(null)}
-              className="block w-full px-3 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-100"
+              className="block w-full whitespace-nowrap px-3 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-100"
             >
               恢复自动朝向
             </button>
           )}
           <button
             onClick={closePet}
-            className="block w-full px-3 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-100"
+            className="block w-full whitespace-nowrap px-3 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-100"
           >
             关闭宠物
           </button>

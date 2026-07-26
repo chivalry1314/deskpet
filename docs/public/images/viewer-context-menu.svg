@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 260" width="300" height="260">
+  <rect width="300" height="260" fill="#000" opacity="0.2"/>
+  <rect x="60" y="40" width="180" height="180" rx="12" fill="none" stroke="#4f46e5" stroke-width="2" stroke-dasharray="6 4"/>
+  <text x="150" y="100" text-anchor="middle" font-family="system-ui, sans-serif" font-size="14" fill="#4f46e5">宠物悬浮窗</text>
+  <text x="150" y="120" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#4f46e5">（透明背景）</text>
+  <ellipse cx="150" cy="160" rx="40" ry="30" fill="#fb923c" opacity="0.9"/>
+  <circle cx="150" cy="140" r="22" fill="#fb923c" opacity="0.9"/>
+  <polygon points="130,125 135,105 145,123" fill="#fb923c"/>
+  <polygon points="170,125 165,105 155,123" fill="#fb923c"/>
+  <circle cx="141" cy="138" r="3" fill="#1e293b"/>
+  <circle cx="159" cy="138" r="3" fill="#1e293b"/>
+  <!-- context menu -->
+  <rect x="170" y="110" width="100" height="90" rx="6" fill="#fff" stroke="#94a3b8" stroke-width="1"/>
+  <text x="220" y="135" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#334155">水平翻转</text>
+  <line x1="180" y1="145" x2="260" y2="145" stroke="#e2e8f0"/>
+  <text x="220" y="165" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#334155">恢复自动朝向</text>
+  <line x1="180" y1="175" x2="260" y2="175" stroke="#e2e8f0"/>
+  <text x="220" y="195" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#334155">关闭宠物</text>
+  <text x="150" y="240" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#e2e8f0">示意图：在宠物窗口上右键</text>
+</svg>

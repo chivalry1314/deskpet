@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" width="640" height="360">
+  <rect width="640" height="360" fill="#000" opacity="0.55"/>
+  <rect x="120" y="60" width="400" height="240" rx="8" fill="#fff" stroke="#94a3b8" stroke-width="1"/>
+  <rect x="120" y="60" width="400" height="36" fill="#f1f5f9"/>
+  <text x="140" y="84" font-family="system-ui, sans-serif" font-size="14" fill="#334155">Windows 已保护你的电脑</text>
+  <rect x="140" y="110" width="48" height="48" rx="6" fill="#f59e0b"/>
+  <text x="164" y="142" text-anchor="middle" font-family="system-ui, sans-serif" font-size="28">⚠</text>
+  <text x="205" y="130" font-family="system-ui, sans-serif" font-size="14" font-weight="600" fill="#1e293b">DeskPet Engine</text>
+  <text x="205" y="150" font-family="system-ui, sans-serif" font-size="12" fill="#64748b">Microsoft Defender SmartScreen 阻止了...</text>
+  <text x="140" y="200" font-family="system-ui, sans-serif" font-size="12" fill="#64748b">发布者: 未知发布者</text>
+  <text x="140" y="225" font-family="system-ui, sans-serif" font-size="12" fill="#2563eb" text-decoration="underline">更多信息</text>
+  <rect x="140" y="250" width="120" height="34" rx="6" fill="#2563eb"/>
+  <text x="200" y="272" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" fill="#fff">仍要运行</text>
+  <rect x="390" y="250" width="90" height="34" rx="6" fill="#e2e8f0"/>
+  <text x="435" y="272" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" fill="#334155">不运行</text>
+  <text x="320" y="330" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#e2e8f0">示意图：点击「更多信息」后会出现「仍要运行」</text>
+</svg>

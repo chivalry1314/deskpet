@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 220" width="400" height="220">
+  <rect width="400" height="220" fill="#f1f5f9"/>
+  <!-- tray icon -->
+  <rect x="330" y="160" width="40" height="40" rx="8" fill="#4f46e5"/>
+  <circle cx="350" cy="180" r="12" fill="#fff"/>
+  <circle cx="350" cy="180" r="6" fill="#4f46e5"/>
+  <path d="M310 180 L260 180 L260 130" stroke="#64748b" stroke-width="2" fill="none" marker-end="url(#tm)"/>
+  <defs><marker id="tm" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#64748b"/></marker></defs>
+  <!-- menu -->
+  <rect x="120" y="40" width="140" height="120" rx="6" fill="#fff" stroke="#94a3b8" stroke-width="1"/>
+  <text x="190" y="70" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" fill="#334155">显示主窗口</text>
+  <line x1="130" y1="80" x2="250" y2="80" stroke="#e2e8f0"/>
+  <text x="190" y="105" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" fill="#334155">隐藏宠物</text>
+  <line x1="130" y1="115" x2="250" y2="115" stroke="#e2e8f0"/>
+  <text x="190" y="140" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" fill="#334155">退出</text>
+  <text x="200" y="195" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#64748b">示意图：系统托盘右键菜单</text>
+</svg>

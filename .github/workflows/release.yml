@@ -26,6 +26,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Sync version from tag
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          node - <<'NODE_SCRIPT'
+            const fs = require('fs');
+            const version = process.env.VERSION;
+            if (!version) throw new Error('VERSION not set');
+
+            // package.json
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            pkg.version = version;
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+
+            // Cargo.toml
+            let cargo = fs.readFileSync('src-tauri/Cargo.toml', 'utf8');
+            cargo = cargo.replace(/^version = ".*"/m, `version = "${version}"`);
+            fs.writeFileSync('src-tauri/Cargo.toml', cargo);
+
+            // tauri.conf.json
+            const conf = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8'));
+            conf.version = version;
+            fs.writeFileSync('src-tauri/tauri.conf.json', JSON.stringify(conf, null, 2) + '\n');
+          NODE_SCRIPT
+
       - name: Install Linux dependencies
         if: matrix.platform == 'ubuntu-22.04'
         run: |
@@ -43,6 +68,10 @@ jobs:
         with:
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
+      - name: Update Cargo.lock
+        run: cargo update -w
+        working-directory: ./src-tauri
+
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
@@ -57,14 +86,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: __VERSION__
-          releaseName: 'DeskPet Engine __VERSION__'
+          tagName: ${{ github.ref_name }}
+          releaseName: 'DeskPet Engine ${{ github.ref_name }}'
           releaseBody: |
             根据你的系统下载对应安装包：
-            - **Windows (x64)**：`DeskPet Engine___VERSION___x64-setup.exe` 或 `DeskPet Engine___VERSION___x64_zh-CN.msi`
-            - **macOS (Apple Silicon M1+)**：`DeskPet Engine___VERSION___aarch64.dmg`
-            - **macOS (Intel)**：`DeskPet Engine___VERSION___x64.dmg`
-            - **Linux (x64)**：`deskpet-engine___VERSION___amd64.AppImage` 或 `deskpet-engine___VERSION___amd64.deb`
+            - **Windows (x64)**：`DeskPet Engine_${{ github.ref_name }}_x64-setup.exe` 或 `DeskPet Engine_${{ github.ref_name }}_x64_zh-CN.msi`
+            - **macOS (Apple Silicon M1+)**：`DeskPet Engine_${{ github.ref_name }}_aarch64.dmg`
+            - **macOS (Intel)**：`DeskPet Engine_${{ github.ref_name }}_x64.dmg`
+            - **Linux (x64)**：`deskpet-engine_${{ github.ref_name }}_amd64.AppImage` 或 `deskpet-engine_${{ github.ref_name }}_amd64.deb`
             
             下载后安装并运行即可。
           releaseDraft: true

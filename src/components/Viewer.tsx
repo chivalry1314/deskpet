@@ -4,6 +4,7 @@ import { getCurrentWindow, PhysicalPosition } from '@tauri-apps/api/window'
 import { listen } from '@tauri-apps/api/event'
 import type { Manifest, Settings } from '../types'
 import { getSettings, loadPet, getBaseDataDir } from '../stores/petStore'
+import { getStateName } from '../utils/stateNames'
 import Live2dViewer from './Live2dViewer'
 
 export const LIVE2D_PET_NAME = '__live2d__'
@@ -133,7 +134,7 @@ export default function Viewer() {
 
     loadPet(petName)
       .then(async (m) => {
-        console.log('[viewer] loaded manifest behavior:', m.behavior)
+        console.log('[viewer] loaded manifest behavior:', m.behavior, 'interactions:', m.interactions)
         console.time(`[perf] Viewer 加载 ${petName} 帧图`)
         const baseDir = await getBaseDataDir()
         const petDir = `${baseDir.replace(/\\/g, '/')}/pets/${petName}`
@@ -419,9 +420,13 @@ export default function Viewer() {
       setFrameIndex(0)
       setStateTick((t) => t + 1)
     } else {
-      const available = Object.keys(m.states).join(', ')
+      const available = Object.keys(m.states)
+        .map((k) => getStateName(k))
+        .join('、')
       console.warn(`on_click 状态「${target}」不存在或没有帧，当前可用状态: ${available}`)
-      alert(`点击响应状态「${target}」不存在或没有帧。\n当前可用状态: ${available || '无'}\n请到编辑器「行为配置」中修改「点击响应状态」。`)
+      alert(
+        `点击响应状态「${getStateName(target)}」不存在或没有帧。\n当前可用状态：${available || '无'}\n\n请到编辑器「行为配置」中修改「点击响应状态」，或添加一个「${getStateName('clicked')}」状态。修改后需要重新运行宠物才会生效。`
+      )
       setPopKey((k) => k + 1)
     }
   }

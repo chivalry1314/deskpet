@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { convertFileSrc } from '@tauri-apps/api/core'
+import { getVersion } from '@tauri-apps/api/app'
 import type { PetInfo, Settings } from '../types'
 import {
   listLocalPets,
@@ -37,6 +38,7 @@ export default function Manager({ onCreate, onEdit }: ManagerProps) {
   const [showSettings, setShowSettings] = useState(false)
   const [live2dRunning, setLive2dRunning] = useState(false)
   const [loading, setLoading] = useState<string | null>(null)
+  const [appVersion, setAppVersion] = useState('')
   const [renameDialog, setRenameDialog] = useState<{
     open: boolean
     originalName: string
@@ -74,6 +76,7 @@ export default function Manager({ onCreate, onEdit }: ManagerProps) {
       refresh(),
       getBaseDataDir().then(setBaseDir),
       getSettings().then(setSettings),
+      getVersion().then(setAppVersion),
     ])
       .catch(console.error)
       .finally(() => setLoading(null))
@@ -264,7 +267,10 @@ export default function Manager({ onCreate, onEdit }: ManagerProps) {
       <div className="mb-4 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">DeskPet Engine</h1>
-          <p className="text-sm text-slate-500">本地桌宠引擎 · 无需联网</p>
+          <p className="text-sm text-slate-500">
+            本地桌宠引擎 · 无需联网
+            {appVersion && <span className="ml-2 rounded bg-slate-200 px-1.5 py-0.5 text-xs">v{appVersion}</span>}
+          </p>
         </div>
         <div className="flex gap-2">
           <input
@@ -467,7 +473,17 @@ export default function Manager({ onCreate, onEdit }: ManagerProps) {
                     </button>
                   )}
                   <button
-                    onClick={() => onEdit(pet.name)}
+                    onClick={async () => {
+                      if (running.has(pet.name)) {
+                        try {
+                          await closePetWindow()
+                          setRunning(new Set())
+                        } catch (e) {
+                          console.error('停止运行中宠物失败:', e)
+                        }
+                      }
+                      onEdit(pet.name)
+                    }}
                     className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-50"
                   >
                     编辑

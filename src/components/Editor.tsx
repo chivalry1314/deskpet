@@ -5,6 +5,7 @@ import { loadPet, savePetManifest, getBaseDataDir } from '../stores/petStore'
 import { removeWhiteBackground } from '../utils/removeBg'
 import { splitGifToPngs } from '../utils/gif'
 import { splitVideoToPngs } from '../utils/video'
+import { getStateName, STATE_PRESETS } from '../utils/stateNames'
 import StateEditor from './StateEditor'
 
 interface EditorProps {
@@ -34,7 +35,7 @@ function createDefaultData(): EditorData {
       random_states: [],
       walk_area: 'screen',
     },
-    interactions: { on_click: 'clicked', on_drag: 'drag', on_hover: 'idle' },
+    interactions: { on_click: 'idle', on_drag: 'drag', on_hover: 'idle' },
   }
 }
 
@@ -167,28 +168,10 @@ export default function Editor({ petName, onBack, onSaved }: EditorProps) {
   const [copiedKey, setCopiedKey] = useState('')
   const [loading, setLoading] = useState<string | null>(petName ? '正在加载宠物...' : null)
   const objectUrlsRef = useRef<Set<string>>(new Set())
-  const [stateDialog, setStateDialog] = useState<{ open: boolean; preset: string; custom: string }>({
+  const [stateDialog, setStateDialog] = useState<{ open: boolean; preset: string }>({
     open: false,
     preset: 'walk',
-    custom: 'walk',
   })
-
-  const STATE_PRESETS = [
-    'idle',
-    'clicked',
-    'walk',
-    'typing',
-    'sleep',
-    'play',
-    'scratch',
-    'eat',
-    'drink',
-    'angry',
-    'happy',
-    'sad',
-    'surprised',
-    'confused',
-  ]
 
   function registerObjectUrl(url: string) {
     objectUrlsRef.current.add(url)
@@ -227,6 +210,11 @@ export default function Editor({ petName, onBack, onSaved }: EditorProps) {
     }
     setCopiedKey(key)
     setTimeout(() => setCopiedKey(''), 1500)
+  }
+
+  function ensureInteraction(value: string, stateKeys: string[]): string {
+    if (stateKeys.includes(value)) return value
+    return stateKeys.length > 0 ? stateKeys[0] : value
   }
 
   useEffect(() => {
@@ -276,6 +264,7 @@ export default function Editor({ petName, onBack, onSaved }: EditorProps) {
         }
         if (cancelled) return
         console.timeEnd(`[perf] 加载 ${petName} 帧图`)
+        const stateKeys = Object.keys(states)
         setData({
           name: manifest.name,
           version: manifest.version,
@@ -285,7 +274,11 @@ export default function Editor({ petName, onBack, onSaved }: EditorProps) {
           scale: manifest.window.scale,
           states,
           behavior: manifest.behavior,
-          interactions: manifest.interactions,
+          interactions: {
+            on_click: ensureInteraction(manifest.interactions.on_click, stateKeys),
+            on_drag: ensureInteraction(manifest.interactions.on_drag, stateKeys),
+            on_hover: ensureInteraction(manifest.interactions.on_hover, stateKeys),
+          },
         })
       })
       .catch((e) => alert('加载失败: ' + e))
@@ -361,11 +354,11 @@ export default function Editor({ petName, onBack, onSaved }: EditorProps) {
 
   const addState = useCallback(() => {
     const first = Object.keys(data.states).length === 0 ? 'idle' : 'walk'
-    setStateDialog({ open: true, preset: first, custom: first })
+    setStateDialog({ open: true, preset: first })
   }, [data.states])
 
   function confirmAddState() {
-    const name = stateDialog.custom.trim() || stateDialog.preset.trim()
+    const name = stateDialog.preset.trim()
     if (!name) return
     if (data.states[name]) {
       alert('状态已存在')
@@ -380,14 +373,19 @@ export default function Editor({ petName, onBack, onSaved }: EditorProps) {
       ...d,
       states: { ...d.states, [name]: st },
     }))
-    setStateDialog({ open: false, preset: 'walk', custom: 'walk' })
+    setStateDialog({ open: false, preset: 'walk' })
   }
 
   const removeState = useCallback((key: string) => {
-    if (!confirm(`删除状态 ${key}?`)) return
+    if (!confirm(`删除状态「${getStateName(key)}」?`)) return
     setData((d) => {
       const { [key]: _, ...rest } = d.states
-      return { ...d, states: rest }
+      const nextKeys = Object.keys(rest)
+      const interactions = { ...d.interactions }
+      if (interactions.on_click === key) interactions.on_click = ensureInteraction(interactions.on_click, nextKeys)
+      if (interactions.on_drag === key) interactions.on_drag = ensureInteraction(interactions.on_drag, nextKeys)
+      if (interactions.on_hover === key) interactions.on_hover = ensureInteraction(interactions.on_hover, nextKeys)
+      return { ...d, states: rest, interactions }
     })
   }, [])
 
@@ -710,6 +708,7 @@ export default function Editor({ petName, onBack, onSaved }: EditorProps) {
                   <StateEditor
                     key={key}
                     stateKey={key}
+                    stateKeys={Object.keys(data.states)}
                     state={state}
                     onChange={(patch) => updateState(key, patch)}
                     onRemove={() => removeState(key)}
@@ -772,7 +771,7 @@ export default function Editor({ petName, onBack, onSaved }: EditorProps) {
                     {Object.keys(data.states).length === 0 && <option value="">暂无状态</option>}
                     {Object.keys(data.states).map((name) => (
                       <option key={name} value={name}>
-                        {name}
+                        {getStateName(name)}
                       </option>
                     ))}
                   </select>
@@ -790,7 +789,7 @@ export default function Editor({ petName, onBack, onSaved }: EditorProps) {
                   可被拖拽
                 </label>
               </div>
-              <Field label="待机结束后随机切换状态（勾选后，宠物空闲时会自动播放这些状态；勾选 walk 时会自动在屏幕上游走）">
+              <Field label="待机结束后随机切换状态（勾选后，宠物空闲时会自动播放这些状态；勾选「游走」时会自动在屏幕上游走）">
                 <div className="flex flex-wrap gap-3 rounded-lg border border-slate-300 p-3">
                   {Object.keys(data.states).length === 0 ? (
                     <span className="text-sm text-slate-400">请先添加状态</span>
@@ -815,7 +814,7 @@ export default function Editor({ petName, onBack, onSaved }: EditorProps) {
                               }))
                             }}
                           />
-                          {name}
+                          {getStateName(name)}
                         </label>
                       )
                     })
@@ -855,7 +854,7 @@ export default function Editor({ petName, onBack, onSaved }: EditorProps) {
                 >
                   {Object.keys(data.states).map((k) => (
                     <option key={k} value={k}>
-                      {k}
+                      {getStateName(k)}
                     </option>
                   ))}
                 </select>
@@ -891,31 +890,22 @@ export default function Editor({ petName, onBack, onSaved }: EditorProps) {
           <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-lg">
             <h3 className="mb-4 text-lg font-semibold">添加状态</h3>
             <div className="mb-4">
-              <label className="mb-1 block text-sm font-medium text-slate-700">选择预设或输入自定义名称</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700">选择状态</label>
               <select
                 value={stateDialog.preset}
-                onChange={(e) =>
-                  setStateDialog((prev) => ({ ...prev, preset: e.target.value, custom: e.target.value }))
-                }
-                className="mb-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                onChange={(e) => setStateDialog((prev) => ({ ...prev, preset: e.target.value }))}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
               >
                 {STATE_PRESETS.map((name) => (
                   <option key={name} value={name}>
-                    {name}
+                    {getStateName(name)}
                   </option>
                 ))}
               </select>
-              <input
-                type="text"
-                value={stateDialog.custom}
-                onChange={(e) => setStateDialog((prev) => ({ ...prev, custom: e.target.value }))}
-                placeholder="自定义状态名（会覆盖上方选择）"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-              />
             </div>
             <div className="flex justify-end gap-2">
               <button
-                onClick={() => setStateDialog({ open: false, preset: 'walk', custom: 'walk' })}
+                onClick={() => setStateDialog({ open: false, preset: 'walk' })}
                 className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm hover:bg-slate-50"
               >
                 取消

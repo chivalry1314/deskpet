@@ -1,7 +1,9 @@
 import type { EditorStateData } from '../types'
+import { getStateName } from '../utils/stateNames'
 
 interface StateEditorProps {
   stateKey: string
+  stateKeys: string[]
   state: EditorStateData
   onChange: (patch: Partial<EditorStateData>) => void
   onRemove: () => void
@@ -9,11 +11,11 @@ interface StateEditorProps {
   onRemoveFrame: (id: string) => void
 }
 
-export default function StateEditor({ stateKey, state, onChange, onRemove, onFiles, onRemoveFrame }: StateEditorProps) {
+export default function StateEditor({ stateKey, stateKeys, state, onChange, onRemove, onFiles, onRemoveFrame }: StateEditorProps) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4">
       <div className="mb-3 flex items-center justify-between">
-        <div className="font-semibold capitalize">{stateKey}</div>
+        <div className="font-semibold">{getStateName(stateKey)}</div>
         {stateKey !== 'idle' && (
           <button onClick={onRemove} className="text-sm text-red-600 hover:underline">
             删除
@@ -60,11 +62,17 @@ export default function StateEditor({ stateKey, state, onChange, onRemove, onFil
         {!state.loop && (
           <label className="text-sm">
             <span className="mb-1 block text-slate-500">结束后切换</span>
-            <input
+            <select
               value={state.next || 'idle'}
               onChange={(e) => onChange({ next: e.target.value })}
               className="w-full rounded-lg border border-slate-300 px-2 py-1.5"
-            />
+            >
+              {stateKeys.map((name) => (
+                <option key={name} value={name}>
+                  {getStateName(name)}
+                </option>
+              ))}
+            </select>
           </label>
         )}
       </div>

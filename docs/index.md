@@ -15,6 +15,9 @@ hero:
     - theme: alt
       text: 安装指南
       link: /guide/installation
+    - theme: alt
+      text: 国内下载（百度网盘）
+      link: https://pan.baidu.com/s/1FpQch1G44NlFwbpYSUaahA?pwd=9gws
 
 features:
   - title: 全本地运行

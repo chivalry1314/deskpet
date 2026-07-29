@@ -12,6 +12,15 @@ https://github.com/baobaobaiphone/deskpet/releases
 
 下载最新版本（文件名包含版本号，如 `v0.1.0`）的安装包。
 
+### 国内下载镜像（百度网盘）
+
+如果 GitHub Release 下载速度较慢，可以通过百度网盘获取安装包：
+
+- 链接：https://pan.baidu.com/s/1FpQch1G44NlFwbpYSUaahA?pwd=9gws
+- 提取码：`9gws`
+
+网盘内的安装包与 GitHub Release 内容一致，按下方「包名对照表」选择对应系统版本即可。
+
 ## 各系统安装步骤
 
 ### Windows

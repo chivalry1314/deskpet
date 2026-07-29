@@ -63,6 +63,15 @@ git push origin main v0.1.0
 
 > 文件名中的 `x64` 在 Windows/macOS 里通常代表 Intel/AMD 64 位；`aarch64` 代表 Apple Silicon；`amd64` 代表 Linux 64 位。
 
+### 国内下载镜像（百度网盘）
+
+如果 GitHub Release 下载速度较慢，可以通过百度网盘获取安装包：
+
+- 链接：https://pan.baidu.com/s/1FpQch1G44NlFwbpYSUaahA?pwd=9gws
+- 提取码：`9gws`
+
+网盘内的安装包与 GitHub Release 内容一致，按上方「下载包名对照」选择对应系统版本即可。
+
 ## 数据目录
 
 - Windows: `%APPDATA%/DeskPet/`

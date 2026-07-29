@@ -7,7 +7,7 @@ DeskPet Engine 支持 Windows、macOS 和 Linux。请到 GitHub Release 下载�
 打开仓库 Release 页面：
 
 ```
-https://github.com/baobaobaiphone/deskpet/releases
+https://github.com/chivalry1314/deskpet/releases
 ```
 
 下载最新版本（文件名包含版本号，如 `v0.1.0`）的安装包。

@@ -2,7 +2,7 @@
 
 一个全本地运行的开源桌宠自定义引擎。用户上传自己的图片、配置动作状态，即可在桌面生成可交互的悬浮宠物。无需联网、无需注册、无服务器。
 
-📖 [在线文档](https://baobaobaiphone.github.io/deskpet/)
+📖 [在线文档](https://chivalry1314.github.io/deskpet/)
 
 ## 技术栈
 

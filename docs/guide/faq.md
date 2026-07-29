@@ -111,7 +111,7 @@ chmod +x "DeskPet Engine_0.1.0_amd64.AppImage"
 请访问 GitHub 仓库提交 Issue：
 
 ```
-https://github.com/baobaobaiphone/deskpet/issues
+https://github.com/chivalry1314/deskpet/issues
 ```
 
 ## 下一步

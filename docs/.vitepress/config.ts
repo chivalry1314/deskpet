@@ -49,11 +49,11 @@ export default defineConfig({
     ],
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/baobaobaiphone/deskpet' },
+      { icon: 'github', link: 'https://github.com/chivalry1314/deskpet' },
     ],
 
     editLink: {
-      pattern: 'https://github.com/baobaobaiphone/deskpet/edit/main/docs/:path',
+      pattern: 'https://github.com/chivalry1314/deskpet/edit/main/docs/:path',
       text: '在 GitHub 上编辑此页',
     },
 

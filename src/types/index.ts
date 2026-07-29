@@ -20,6 +20,8 @@ export interface BehaviorConfig {
   drag_physics: boolean
   /** 待机结束后随机切换的状态名列表；为空时行为维持原样 */
   random_states?: string[]
+  /** 随机游走范围：screen=全屏移动，spot=原地播放 walk 动画不移动窗口，默认 screen */
+  walk_area?: 'screen' | 'spot'
 }
 
 export interface InteractionConfig {

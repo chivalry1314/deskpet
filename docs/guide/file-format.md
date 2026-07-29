@@ -49,7 +49,8 @@
     "walk_speed": 2,
     "edge_bounce": true,
     "drag_physics": true,
-    "random_states": ["sleep", "play"]
+    "random_states": ["sleep", "play"],
+    "walk_area": "screen"
   },
   "interactions": {
     "on_click": "clicked",
@@ -100,6 +101,7 @@
 | `edge_bounce` | boolean | 是否开启待机结束后随机游走（撞到屏幕边缘会掉头） |
 | `drag_physics` | boolean | 是否允许鼠标拖拽 |
 | `random_states` | string[] | 待机结束后可能随机进入并播放的状态列表 |
+| `walk_area` | string | 随机游走范围：`screen`（全屏移动）或 `spot`（原地播放 walk 动画，不移动窗口） |
 
 ### interactions
 

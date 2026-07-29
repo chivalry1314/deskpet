@@ -32,6 +32,7 @@ function createDefaultData(): EditorData {
       edge_bounce: false,
       drag_physics: true,
       random_states: [],
+      walk_area: 'screen',
     },
     interactions: { on_click: 'clicked', on_drag: 'drag', on_hover: 'idle' },
   }
@@ -764,16 +765,6 @@ export default function Editor({ petName, onBack, onSaved }: EditorProps) {
                 <label className="flex items-center gap-2 text-sm">
                   <input
                     type="checkbox"
-                    checked={data.behavior.edge_bounce}
-                    onChange={(e) =>
-                      setData((d) => ({ ...d, behavior: { ...d.behavior, edge_bounce: e.target.checked } }))
-                    }
-                  />
-                  待机结束后随机游走（宠物会在屏幕内自己走动）
-                </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
                     checked={data.behavior.drag_physics}
                     onChange={(e) =>
                       setData((d) => ({ ...d, behavior: { ...d.behavior, drag_physics: e.target.checked } }))
@@ -782,7 +773,7 @@ export default function Editor({ petName, onBack, onSaved }: EditorProps) {
                   可被拖拽
                 </label>
               </div>
-              <Field label="待机结束后随机切换状态（勾选后，宠物空闲时会自动播放这些状态）">
+              <Field label="待机结束后随机切换状态（勾选后，宠物空闲时会自动播放这些状态；勾选 walk 时会自动在屏幕上游走）">
                 <div className="flex flex-wrap gap-3 rounded-lg border border-slate-300 p-3">
                   {Object.keys(data.states).length === 0 ? (
                     <span className="text-sm text-slate-400">请先添加状态</span>
@@ -813,6 +804,24 @@ export default function Editor({ petName, onBack, onSaved }: EditorProps) {
                     })
                   )}
                 </div>
+                {(data.behavior.random_states ?? []).includes('walk') && (
+                  <div className="mt-3 flex items-center gap-2">
+                    <label className="text-sm text-slate-700">游走范围</label>
+                    <select
+                      value={data.behavior.walk_area ?? 'screen'}
+                      onChange={(e) =>
+                        setData((d) => ({
+                          ...d,
+                          behavior: { ...d.behavior, walk_area: e.target.value as 'screen' | 'spot' },
+                        }))
+                      }
+                      className="rounded-lg border border-slate-300 px-2 py-1 text-sm"
+                    >
+                      <option value="screen">全屏走动</option>
+                      <option value="spot">原地走动</option>
+                    </select>
+                  </div>
+                )}
               </Field>
             </div>
           )}

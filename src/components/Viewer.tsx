@@ -223,6 +223,48 @@ export default function Viewer() {
     let lastFlipX = flipXRef.current
     let rafId = 0
 
+    function getWalkBounds() {
+      const sf = window.devicePixelRatio || 1
+      const winW = manifestRef.current!.window.width * sf
+      const winH = manifestRef.current!.window.height * sf
+      const screenW = window.screen.availWidth * sf
+      const screenH = window.screen.availHeight * sf
+      const maxX = Math.max(0, screenW - winW)
+      const maxY = Math.max(0, screenH - winH)
+      return { maxX, maxY }
+    }
+
+    function initWalkVelocity() {
+      const angle = Math.random() * Math.PI * 2
+      vx = Math.cos(angle) * walk_speed
+      vy = Math.sin(angle) * walk_speed
+    }
+
+    function moveWindow() {
+      const walkArea = manifestRef.current!.behavior.walk_area ?? 'screen'
+      // 原地走模式只播放 walk 动画，不移动窗口位置
+      if (walkArea === 'spot') return
+      const { maxX, maxY } = getWalkBounds()
+      let nx = posRef.current.x + vx
+      let ny = posRef.current.y + vy
+      if (nx <= 0 || nx >= maxX) {
+        vx = -vx
+        nx = Math.max(0, Math.min(nx, maxX))
+      }
+      if (ny <= 0 || ny >= maxY) {
+        vy = -vy
+        ny = Math.max(0, Math.min(ny, maxY))
+      }
+      posRef.current = { x: nx, y: ny }
+      winRef.current.setPosition(new PhysicalPosition(Math.round(nx), Math.round(ny))).catch(console.error)
+
+      const nextFlip = vx < 0
+      if (nextFlip !== lastFlipX) {
+        lastFlipX = nextFlip
+        setFlipX(nextFlip)
+      }
+    }
+
     function loop(now: number) {
       if (now - lastTime >= 16) {
         lastTime = now
@@ -235,13 +277,20 @@ export default function Viewer() {
               setState(pick)
               setFrameIndex(0)
               setStateTick((t) => t + 1)
-              phaseEnd = now + 500
+
+              // 如果 random_states 选中了 walk，则进入游走模式并移动窗口
+              if (pick === 'walk') {
+                mode = 'walk'
+                phaseEnd = now + rand(2, 5) * 1000
+                initWalkVelocity()
+              } else {
+                phaseEnd = now + 500
+              }
             } else if (edge_bounce) {
+              // 兼容旧配置：没有 random_states 但开启了旧版游走开关
               mode = 'walk'
               phaseEnd = now + rand(2, 5) * 1000
-              const angle = Math.random() * Math.PI * 2
-              vx = Math.cos(angle) * walk_speed
-              vy = Math.sin(angle) * walk_speed
+              initWalkVelocity()
               if (manifestRef.current!.states.walk) {
                 setState('walk')
                 setFrameIndex(0)
@@ -249,32 +298,12 @@ export default function Viewer() {
               }
             }
           }
-        } else {
+        } else if (mode === 'walk') {
           if (!dragRef.current.dragging) {
-            const sf = window.devicePixelRatio || 1
-            const maxX = (window.screen.availWidth - manifestRef.current!.window.width) * sf
-            const maxY = (window.screen.availHeight - manifestRef.current!.window.height) * sf
-            let nx = posRef.current.x + vx
-            let ny = posRef.current.y + vy
-            if (nx <= 0 || nx >= maxX) {
-              vx = -vx
-              nx = Math.max(0, Math.min(nx, maxX))
-            }
-            if (ny <= 0 || ny >= maxY) {
-              vy = -vy
-              ny = Math.max(0, Math.min(ny, maxY))
-            }
-            posRef.current = { x: nx, y: ny }
-            winRef.current.setPosition(new PhysicalPosition(Math.round(nx), Math.round(ny))).catch(console.error)
-
-            const nextFlip = vx < 0
-            if (nextFlip !== lastFlipX) {
-              lastFlipX = nextFlip
-              setFlipX(nextFlip)
-            }
+            moveWindow()
           }
 
-          if (now >= phaseEnd) {
+          if (now >= phaseEnd || stateRef.current !== 'walk') {
             mode = 'idle'
             phaseEnd = now + rand(idleMin, idleMax) * 1000
             if (stateRef.current === 'walk') {

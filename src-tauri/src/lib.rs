@@ -347,6 +347,13 @@ pub struct BehaviorConfig {
     /// 待机结束后随机进入的状态名列表（如 sleep/play/scratch）
     #[serde(default)]
     pub random_states: Vec<String>,
+    /// 随机游走范围：screen=全屏移动，spot=原地播放 walk 动画不移动窗口，默认 screen
+    #[serde(default = "default_walk_area")]
+    pub walk_area: String,
+}
+
+fn default_walk_area() -> String {
+    "screen".to_string()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

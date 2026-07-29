@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { invoke } from '@tauri-apps/api/core'
+import { readFile, writeFile, mkdir } from '@tauri-apps/plugin-fs'
 import type { EditorData, EditorStateData, FrameFile, Manifest } from '../types'
-import { loadPet, savePet } from '../stores/petStore'
+import { loadPet, savePetManifest, getBaseDataDir } from '../stores/petStore'
 import { removeWhiteBackground } from '../utils/removeBg'
 import { splitGifToPngs } from '../utils/gif'
 import { splitVideoToPngs } from '../utils/video'
@@ -237,9 +237,11 @@ export default function Editor({ petName, onBack, onSaved }: EditorProps) {
     if (!petName) return
     let cancelled = false
     setLoading('正在加载宠物...')
-    loadPet(petName)
-      .then(async (manifest) => {
+    Promise.all([loadPet(petName), getBaseDataDir()])
+      .then(async ([manifest, baseDir]) => {
         if (cancelled) return
+        console.time(`[perf] 加载 ${petName} 帧图`)
+        const petDir = `${baseDir.replace(/\\/g, '/')}/pets/${petName}`
         // 从后端读回每个状态的已保存帧图，重建 FrameFile（可继续编辑，无需重传）
         const states: Record<string, EditorStateData> = {}
         for (const [key, cfg] of Object.entries(manifest.states)) {
@@ -247,8 +249,8 @@ export default function Editor({ petName, onBack, onSaved }: EditorProps) {
             await Promise.all(
               cfg.frames.map(async (name) => {
                 try {
-                  const bytes = await invoke<number[]>('load_pet_image', { petName, imageName: name })
-                  const blob = new Blob([new Uint8Array(bytes)], { type: 'image/png' })
+                  const bytes = await readFile(`${petDir}/${name}`)
+                  const blob = new Blob([bytes], { type: 'image/png' })
                   const file = new File([blob], name, { type: 'image/png' })
                   const previewUrl = URL.createObjectURL(blob)
                   registerObjectUrl(previewUrl)
@@ -257,7 +259,8 @@ export default function Editor({ petName, onBack, onSaved }: EditorProps) {
                     file,
                     previewUrl,
                   } as FrameFile
-                } catch {
+                } catch (err) {
+                  console.error(`加载帧图失败 ${petDir}/${name}:`, err)
                   return null
                 }
               })
@@ -272,6 +275,7 @@ export default function Editor({ petName, onBack, onSaved }: EditorProps) {
           }
         }
         if (cancelled) return
+        console.timeEnd(`[perf] 加载 ${petName} 帧图`)
         setData({
           name: manifest.name,
           version: manifest.version,
@@ -294,6 +298,14 @@ export default function Editor({ petName, onBack, onSaved }: EditorProps) {
       revokeAllObjectUrls()
     }
   }, [petName])
+
+  useEffect(() => {
+    setPreviewState((prev) => {
+      if (data.states[prev]) return prev
+      const keys = Object.keys(data.states)
+      return keys.length > 0 ? keys[0] : 'idle'
+    })
+  }, [data.states])
 
   useEffect(() => {
     const state = data.states[previewState]
@@ -496,14 +508,6 @@ export default function Editor({ petName, onBack, onSaved }: EditorProps) {
       }
     }
 
-    const frameBuffers = await withConcurrency(frameEntries, async ({ name, frame }) => {
-      const buf = await frame.file.arrayBuffer()
-      return { name, bytes: Array.from(new Uint8Array(buf)) }
-    })
-
-    const images = frameBuffers.map((f) => f.bytes)
-    const imageNames = frameBuffers.map((f) => f.name)
-
     const manifest: Manifest = {
       name: data.name.trim(),
       version: data.version,
@@ -513,9 +517,22 @@ export default function Editor({ petName, onBack, onSaved }: EditorProps) {
       behavior: data.behavior,
       interactions: data.interactions,
     }
+    console.log('[editor] saving behavior:', manifest.behavior)
+
+    const baseDir = await getBaseDataDir()
+    const petDir = `${baseDir.replace(/\\/g, '/')}/pets/${data.name.trim()}`
 
     try {
-      await savePet({ config: manifest, images, image_names: imageNames })
+      console.time(`[perf] 保存 ${data.name.trim()}`)
+      await mkdir(petDir, { recursive: true })
+      await Promise.all(
+        frameEntries.map(async ({ name, frame }) => {
+          const buf = await frame.file.arrayBuffer()
+          await writeFile(`${petDir}/${name}`, new Uint8Array(buf))
+        })
+      )
+      await savePetManifest(manifest)
+      console.timeEnd(`[perf] 保存 ${data.name.trim()}`)
       alert('保存成功')
       onSaved()
     } catch (e) {
@@ -809,12 +826,13 @@ export default function Editor({ petName, onBack, onSaved }: EditorProps) {
                     <label className="text-sm text-slate-700">游走范围</label>
                     <select
                       value={data.behavior.walk_area ?? 'screen'}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        console.log('[editor] walk_area changed to:', e.target.value)
                         setData((d) => ({
                           ...d,
                           behavior: { ...d.behavior, walk_area: e.target.value as 'screen' | 'spot' },
                         }))
-                      }
+                      }}
                       className="rounded-lg border border-slate-300 px-2 py-1 text-sm"
                     >
                       <option value="screen">全屏走动</option>

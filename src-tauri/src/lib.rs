@@ -173,6 +173,7 @@ pub fn run() {
             list_local_pets,
             load_pet,
             save_pet,
+            save_pet_manifest,
             delete_pet,
             spawn_pet_window,
             close_pet_window,
@@ -187,6 +188,7 @@ pub fn run() {
             save_settings,
         ])
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
@@ -452,6 +454,40 @@ fn save_pet(app: tauri::AppHandle, payload: SavePetPayload) -> Result<(), String
 
     let manifest_path = pet_dir.join("manifest.json");
     let json = serde_json::to_string_pretty(&payload.config).map_err(|e| e.to_string())?;
+    fs::write(&manifest_path, json).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// 仅保存 manifest.json 并清理已不在 manifest 中的旧帧图
+/// 前端已用 fs 插件写入新帧图，所以这里只删除“新 manifest 未引用”的 .png，避免把刚写入的图片删掉
+#[tauri::command]
+fn save_pet_manifest(app: tauri::AppHandle, config: Manifest) -> Result<(), String> {
+    let pet_dir = deskpet_dir(&app).join(&config.name);
+    fs::create_dir_all(&pet_dir).map_err(|e| e.to_string())?;
+
+    // collect all frame names referenced by the new manifest
+    let mut referenced: std::collections::HashSet<String> = std::collections::HashSet::new();
+    for state in config.states.values() {
+        for frame in &state.frames {
+            referenced.insert(frame.clone());
+        }
+    }
+
+    // remove stale png files that are no longer referenced
+    for entry in fs::read_dir(&pet_dir).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let p = entry.path();
+        if p.extension().and_then(|s| s.to_str()) == Some("png") {
+            if let Some(name) = p.file_name().and_then(|s| s.to_str()) {
+                if !referenced.contains(name) {
+                    let _ = fs::remove_file(p);
+                }
+            }
+        }
+    }
+
+    let manifest_path = pet_dir.join("manifest.json");
+    let json = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
     fs::write(&manifest_path, json).map_err(|e| e.to_string())?;
     Ok(())
 }

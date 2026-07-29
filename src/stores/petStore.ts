@@ -4,7 +4,7 @@ export type { PetInfo, Manifest, Settings }
 
 export type SavePetPayload = {
   config: Manifest
-  images: number[][]
+  images: Uint8Array[]
   image_names: string[]
 } & Record<string, unknown>
 
@@ -24,6 +24,10 @@ export async function savePet(payload: SavePetPayload): Promise<void> {
   return invoke('save_pet', { payload })
 }
 
+export async function savePetManifest(config: Manifest): Promise<void> {
+  return invoke('save_pet_manifest', { config })
+}
+
 export async function spawnPetWindow(petName: string): Promise<void> {
   return invoke('spawn_pet_window', { petName })
 }
@@ -32,7 +36,7 @@ export async function closePetWindow(): Promise<void> {
   return invoke('close_pet_window')
 }
 
-export async function exportPet(petName: string): Promise<number[]> {
+export async function exportPet(petName: string): Promise<Uint8Array> {
   return invoke('export_pet', { petName })
 }
 
@@ -46,7 +50,7 @@ export async function migratePets(newBase: string): Promise<void> {
   return invoke('migrate_pets', { newBase })
 }
 
-export async function importPet(bytes: number[], newName?: string): Promise<void> {
+export async function importPet(bytes: Uint8Array, newName?: string): Promise<void> {
   return invoke('import_pet', { bytes, newName })
 }
 

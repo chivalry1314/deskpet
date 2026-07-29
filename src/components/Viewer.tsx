@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { invoke } from '@tauri-apps/api/core'
+import { invoke, convertFileSrc } from '@tauri-apps/api/core'
 import { getCurrentWindow, PhysicalPosition } from '@tauri-apps/api/window'
 import { listen } from '@tauri-apps/api/event'
 import type { Manifest, Settings } from '../types'
-import { getSettings } from '../stores/petStore'
+import { getSettings, loadPet, getBaseDataDir } from '../stores/petStore'
 import Live2dViewer from './Live2dViewer'
 
 export const LIVE2D_PET_NAME = '__live2d__'
@@ -59,6 +59,7 @@ export default function Viewer() {
   }, [state])
 
   useEffect(() => {
+    console.log('[viewer] manifestRef updated to:', manifest?.name, manifest?.behavior)
     manifestRef.current = manifest
   }, [manifest])
 
@@ -130,19 +131,22 @@ export default function Viewer() {
         posRef.current = { x: 100, y: 100 }
       })
 
-    invoke<Manifest>('load_pet', { petName })
+    loadPet(petName)
       .then(async (m) => {
+        console.log('[viewer] loaded manifest behavior:', m.behavior)
+        console.time(`[perf] Viewer 加载 ${petName} 帧图`)
+        const baseDir = await getBaseDataDir()
+        const petDir = `${baseDir.replace(/\\/g, '/')}/pets/${petName}`
         const map: Record<string, string> = {}
         for (const cfg of Object.values(m.states)) {
           for (const frame of cfg.frames) {
             if (!map[frame]) {
-              const bytes: number[] = await invoke('load_pet_image', { petName, imageName: frame })
-              const blob = new Blob([new Uint8Array(bytes)], { type: 'image/png' })
-              map[frame] = URL.createObjectURL(blob)
+              map[frame] = convertFileSrc(`${petDir}/${frame}`)
             }
           }
         }
         imageMapRef.current = map
+        console.timeEnd(`[perf] Viewer 加载 ${petName} 帧图`)
         setManifest(m)
         setImageMap(map)
         setState('idle')
@@ -212,7 +216,9 @@ export default function Viewer() {
   // Behavior loop: idle/walk/random states, driven by requestAnimationFrame
   useEffect(() => {
     if (!manifest) return
-    const { walk_speed, idle_time, random_states, edge_bounce } = manifest.behavior
+    console.log('[viewer] behavior loop start, behavior:', manifest.behavior)
+    const behavior = manifest.behavior
+    const { walk_speed, idle_time, random_states, edge_bounce } = behavior
     const [idleMin, idleMax] = idle_time
     const rand = (a: number, b: number) => a + Math.random() * (b - a)
     let phaseEnd = performance.now() + rand(idleMin, idleMax) * 1000
@@ -241,7 +247,11 @@ export default function Viewer() {
     }
 
     function moveWindow() {
-      const walkArea = manifestRef.current!.behavior.walk_area ?? 'screen'
+      const walkArea = behavior.walk_area ?? 'screen'
+      if (walkArea !== 'screen' && walkArea !== 'spot') {
+        console.warn('[viewer] unknown walk_area:', walkArea, 'treating as screen')
+      }
+      console.log('[viewer] moveWindow walk_area:', walkArea, 'pos:', posRef.current)
       // 原地走模式只播放 walk 动画，不移动窗口位置
       if (walkArea === 'spot') return
       const { maxX, maxY } = getWalkBounds()
@@ -256,7 +266,9 @@ export default function Viewer() {
         ny = Math.max(0, Math.min(ny, maxY))
       }
       posRef.current = { x: nx, y: ny }
-      winRef.current.setPosition(new PhysicalPosition(Math.round(nx), Math.round(ny))).catch(console.error)
+      winRef.current.setPosition(new PhysicalPosition(Math.round(nx), Math.round(ny))).catch((err) => {
+        console.error('[viewer] setPosition failed:', err)
+      })
 
       const nextFlip = vx < 0
       if (nextFlip !== lastFlipX) {
@@ -274,12 +286,14 @@ export default function Viewer() {
             const candidates = (random_states ?? []).filter((s) => manifestRef.current!.states[s]?.frames.length > 0)
             if (candidates.length > 0) {
               const pick = candidates[Math.floor(Math.random() * candidates.length)]
+              console.log('[viewer] random pick:', pick)
               setState(pick)
               setFrameIndex(0)
               setStateTick((t) => t + 1)
 
               // 如果 random_states 选中了 walk，则进入游走模式并移动窗口
               if (pick === 'walk') {
+                console.log('[viewer] enter walk mode (random_states)')
                 mode = 'walk'
                 phaseEnd = now + rand(2, 5) * 1000
                 initWalkVelocity()
@@ -288,6 +302,7 @@ export default function Viewer() {
               }
             } else if (edge_bounce) {
               // 兼容旧配置：没有 random_states 但开启了旧版游走开关
+              console.log('[viewer] enter walk mode (edge_bounce legacy)')
               mode = 'walk'
               phaseEnd = now + rand(2, 5) * 1000
               initWalkVelocity()
@@ -304,6 +319,7 @@ export default function Viewer() {
           }
 
           if (now >= phaseEnd || stateRef.current !== 'walk') {
+            console.log('[viewer] exit walk mode')
             mode = 'idle'
             phaseEnd = now + rand(idleMin, idleMax) * 1000
             if (stateRef.current === 'walk') {

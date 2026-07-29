@@ -41,7 +41,7 @@ export default function Manager({ onCreate, onEdit }: ManagerProps) {
     open: boolean
     originalName: string
     newName: string
-    bytes: number[] | null
+    bytes: Uint8Array | null
   }>({ open: false, originalName: '', newName: '', bytes: null })
 
   async function handleRunLive2d() {
@@ -184,7 +184,7 @@ export default function Manager({ onCreate, onEdit }: ManagerProps) {
     setLoading('正在导入 .pet...')
     try {
       const buf = await file.arrayBuffer()
-      const bytes = Array.from(new Uint8Array(buf))
+      const bytes = new Uint8Array(buf)
       await tryImportPet(bytes)
     } catch (err) {
       alert('导入失败: ' + err)
@@ -194,7 +194,7 @@ export default function Manager({ onCreate, onEdit }: ManagerProps) {
     }
   }
 
-  async function tryImportPet(bytes: number[], suggestedName?: string) {
+  async function tryImportPet(bytes: Uint8Array, suggestedName?: string) {
     try {
       await importPet(bytes, suggestedName)
       await refresh()

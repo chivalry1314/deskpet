@@ -28,12 +28,14 @@ jobs:
 
       - name: Sync version from tag
         run: |
-          VERSION=${GITHUB_REF_NAME#v}
+          export VERSION=${GITHUB_REF_NAME#v}
+          echo "VERSION=$VERSION"
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           node - <<'NODE_SCRIPT'
             const fs = require('fs');
             const version = process.env.VERSION;
             if (!version) throw new Error('VERSION not set');
+            console.log('Syncing version:', version);
 
             // package.json
             const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));

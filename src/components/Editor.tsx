@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { readFile, writeFile, mkdir } from '@tauri-apps/plugin-fs'
 import type { EditorData, EditorStateData, FrameFile, Manifest } from '../types'
 import { loadPet, savePetManifest, getBaseDataDir } from '../stores/petStore'
@@ -163,6 +163,8 @@ export default function Editor({ petName, onBack, onSaved }: EditorProps) {
   const [activeTab, setActiveTab] = useState<'basic' | 'states' | 'behavior' | 'preview'>('basic')
   const [previewState, setPreviewState] = useState('idle')
   const [previewFrame, setPreviewFrame] = useState(0)
+  const previewFrameRef = useRef(0)
+  const previewStateRef = useRef(previewState)
   const [autoRemoveBg, setAutoRemoveBg] = useState(true)
   const [showPrompts, setShowPrompts] = useState(false)
   const [copiedKey, setCopiedKey] = useState('')
@@ -301,20 +303,32 @@ export default function Editor({ petName, onBack, onSaved }: EditorProps) {
   }, [data.states])
 
   useEffect(() => {
+    previewStateRef.current = previewState
+  }, [previewState])
+
+  const previewFrameIds = useMemo(
+    () => data.states[previewState]?.frames.map((f) => f.id).join(',') ?? '',
+    [data.states, previewState]
+  )
+
+  useEffect(() => {
     const state = data.states[previewState]
     if (!state || state.frames.length === 0) return
-    let frame = 0
     let dir = 1
+    previewFrameRef.current = 0
     setPreviewFrame(0)
     let lastTime = performance.now()
-    const interval = 1000 / state.fps
     let rafId = 0
 
     function loop(now: number) {
+      const state = data.states[previewStateRef.current]
+      if (!state || state.frames.length === 0) return
+      const interval = 1000 / state.fps
       const elapsed = now - lastTime
       if (elapsed >= interval) {
         const steps = Math.floor(elapsed / interval)
         lastTime += steps * interval
+        let frame = previewFrameRef.current
         for (let s = 0; s < steps; s++) {
           if (state.loop && state.pingpong && state.frames.length > 1) {
             frame += dir
@@ -328,11 +342,14 @@ export default function Editor({ petName, onBack, onSaved }: EditorProps) {
           } else {
             frame = (frame + 1) % (state.loop ? state.frames.length : Math.max(1, state.frames.length))
             if (!state.loop && frame === state.frames.length - 1) {
+              previewFrameRef.current = frame
               setPreviewFrame(frame)
+              cancelAnimationFrame(rafId)
               return
             }
           }
         }
+        previewFrameRef.current = frame
         setPreviewFrame(frame)
       }
       rafId = requestAnimationFrame(loop)
@@ -340,7 +357,7 @@ export default function Editor({ petName, onBack, onSaved }: EditorProps) {
 
     rafId = requestAnimationFrame(loop)
     return () => cancelAnimationFrame(rafId)
-  }, [previewState, data.states])
+  }, [previewState, previewFrameIds])
 
   const updateState = useCallback((key: string, patch: Partial<EditorStateData>) => {
     setData((d) => ({

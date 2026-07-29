@@ -92,7 +92,7 @@ def build_mock():
 
 
 def capture():
-    out_dir = ROOT / "docs" / "public" / "images" / "screenshots"
+    out_dir = ROOT / "docs" / "public" / "images"
     out_dir.mkdir(parents=True, exist_ok=True)
     base_url = "http://127.0.0.1:5173/index.html"
     mock = build_mock()
@@ -162,7 +162,8 @@ def capture():
         page.locator("button:has-text('+ 添加状态')").click()
         page.wait_for_timeout(300)
         page.screenshot(path=str(out_dir / "editor-add-state.png"))
-        page.keyboard.press("Escape")
+        # Close dialog by clicking the cancel button
+        page.locator("button:has-text('取消')").click()
         page.wait_for_timeout(300)
 
         # Behavior tab

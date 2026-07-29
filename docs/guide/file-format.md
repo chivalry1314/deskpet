@@ -98,10 +98,10 @@
 |---|---|---|
 | `idle_time` | number[] | 待机状态持续的最短、最长时间（秒） |
 | `walk_speed` | number | 随机游走速度 |
-| `edge_bounce` | boolean | 是否开启待机结束后随机游走（撞到屏幕边缘会掉头） |
+| `edge_bounce` | boolean | **已废弃，仅保留兼容**。旧版用此字段控制待机结束后随机游走；新版请通过 `random_states` 和 `walk_area` 控制 |
 | `drag_physics` | boolean | 是否允许鼠标拖拽 |
-| `random_states` | string[] | 待机结束后可能随机进入并播放的状态列表 |
-| `walk_area` | string | 随机游走范围：`screen`（全屏移动）或 `spot`（原地播放 walk 动画，不移动窗口） |
+| `random_states` | string[] | 待机结束后可能随机进入并播放的状态列表。包含 `walk` 时，宠物会播放 walk 动画 |
+| `walk_area` | string | 随机游走范围：`screen`（宠物窗口在屏幕上全屏移动）或 `spot`（只原地播放 walk 动画，不移动窗口） |
 
 ### interactions
 
